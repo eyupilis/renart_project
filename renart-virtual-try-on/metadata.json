@@ -1,0 +1,6 @@
+
+{
+  "name": "Renart Virtual Try-On",
+  "description": "An AI-powered tool for Renart to virtually try on rings. Select a ring from our catalog, upload a photo of a hand, and generate a realistic image of the ring being worn.",
+  "requestFramePermissions": []
+}
