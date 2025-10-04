@@ -107,10 +107,21 @@ export function VirtualTryOnModal({ isOpen, onClose, product }: VirtualTryOnModa
 
     try {
       const result = await editImage(personImage, selectedRing.imageFile);
-      setResultData(result);
+      
+      // Check if API is unavailable
+      if (!result.imageBase64 && result.text?.includes('Gemini API key not configured')) {
+        setError('Virtual Try-On requires additional setup. This is a demo feature that needs the Gemini API key to be configured. You can still browse and purchase our beautiful rings!');
+        setResultData({
+          text: 'Virtual Try-On Demo Mode: This feature requires additional API configuration for full functionality. Visit our store to try on rings in person!',
+          imageBase64: null,
+          mimeType: null,
+        });
+      } else {
+        setResultData(result);
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
+      console.warn('Virtual Try-On error:', err);
+      setError('Virtual Try-On is temporarily unavailable. You can still browse our collection and make purchases!');
     } finally {
       setAppState('done');
     }
@@ -268,7 +279,7 @@ export function VirtualTryOnModal({ isOpen, onClose, product }: VirtualTryOnModa
 
           {/* Generate Button - Premium Style */}
           {selectedRing && personImage && appState === 'idle' && (
-            <div className="flex justify-center pt-4 border-t border-neutral-200">
+            <div className="flex flex-col items-center pt-4 border-t border-neutral-200 space-y-3">
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -279,6 +290,9 @@ export function VirtualTryOnModal({ isOpen, onClose, product }: VirtualTryOnModa
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </button>
+              <div className="text-center text-xs text-neutral-500 max-w-md">
+                <p>This is an AI-powered demo feature. For the best experience, visit our showroom to try rings in person!</p>
+              </div>
             </div>
           )}
           
