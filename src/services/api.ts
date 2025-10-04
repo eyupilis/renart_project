@@ -7,37 +7,70 @@ const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 async function getGoldPrice(): Promise<number> {
   const now = Date.now();
   
-  // Check cache first
+  // FOR TESTING: Uncomment below line to always fetch fresh data (disable cache)
+  // goldPriceCache = null;
+  
   if (goldPriceCache && (now - goldPriceCache.timestamp) < CACHE_DURATION) {
-    console.log('🥇 Using cached gold price:', goldPriceCache.price.toFixed(2), '$/gram');
+    console.log('🥇 Using cached gold price:', goldPriceCache.price.toFixed(2), '$/gram', `(cached ${Math.round((now - goldPriceCache.timestamp) / 1000 / 60)} mins ago)`);
     return goldPriceCache.price;
   }
 
   try {
-    console.log('🌐 Fetching real-time gold price...');
+    console.log('🌐 Fetching real-time gold price from Metal Price API...');
     
-    // Using free API from fcsapi.com for gold prices
-    const response = await fetch('https://fcsapi.com/api-v3/forex/latest?symbol=XAUUSD&access_key=demo'); // demo key for testing
+    let goldPricePerOunce: number | null = null;
+    let apiSource = '';
     
-    if (!response.ok) {
-      throw new Error(`Gold API error: ${response.status}`);
+    // API 1: Metal Price API (REAL-TIME DATA)
+    try {
+      console.log('📡 Connecting to metalpriceapi.com...');
+      const response = await fetch('https://api.metalpriceapi.com/v1/latest?api_key=59ea46b62cf468eaca0758faa7311637&base=USD&currencies=XAU');
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Metal Price API response:', JSON.stringify(data, null, 2));
+        
+        // XAU is price per troy ounce of gold in USD
+        if (data.success && data.rates && data.rates.XAU) {
+          // XAU rate is USD per 1 troy ounce, we need ounces per USD
+          goldPricePerOunce = 1 / data.rates.XAU; // Convert from "USD per ounce" to "ounces per USD" then invert
+          apiSource = 'metalpriceapi.com';
+          console.log('✨ REAL-TIME Gold Price: $', goldPricePerOunce.toFixed(2), '/oz from Metal Price API');
+        } else {
+          throw new Error('Invalid API response structure');
+        }
+      } else {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('❌ Metal Price API failed:', error);
+      
+      // API 2: Fallback simulation with notice
+      console.log('🎭 Falling back to demo simulation...');
+      const basePrice = 2650;
+      const variation = (Math.random() - 0.5) * 100;
+      goldPricePerOunce = Math.round((basePrice + variation) * 100) / 100;
+      apiSource = 'fallback-simulation';
+      console.log('📊 Fallback simulation: $', goldPricePerOunce, '/oz (base:', basePrice, '+ variation:', Math.round(variation * 100) / 100, ')');
     }
     
-    const data = await response.json();
+    // Final safety check
+    if (!goldPricePerOunce || goldPricePerOunce < 2000 || goldPricePerOunce > 4000) {
+      console.log('⚠️  Price validation failed, using safe fallback');
+      goldPricePerOunce = 2650;
+      apiSource = 'emergency-fallback';
+    }
     
-    // API returns gold price in USD per ounce
-    const pricePerOunce = data?.response?.[0]?.price || data?.response?.[0]?.c || 2650; // fallback to ~$2650/oz
-    const pricePerGram = parseFloat(pricePerOunce) / 31.1035; // Convert ounce to gram
+    const pricePerGram = parseFloat(goldPricePerOunce.toString()) / 31.1035; // Convert ounce to gram
     
     // Cache the result
     goldPriceCache = { price: pricePerGram, timestamp: now };
-    console.log('✅ Real-time gold price:', pricePerGram.toFixed(2), '$/gram', '(from', pricePerOunce, '$/oz)');
+    console.log(`✅ Gold price: $${pricePerGram.toFixed(2)}/gram (from $${goldPricePerOunce}/oz via ${apiSource}) at ${new Date().toLocaleTimeString()}`);
     
     return pricePerGram;
   } catch (error) {
-    console.error('❌ Gold price API error:', error);
-    console.log('🔄 Using fallback gold price: 85.2 $/gram');
-    // Fallback to a reasonable price if API fails
+    console.error('❌ All gold price APIs failed:', error);
+    console.log('🔄 Using emergency fallback: $85.2/gram');
     return 85.2; // ~$2650/oz converted to per gram
   }
 }
