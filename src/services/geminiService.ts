@@ -1,17 +1,27 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { ImageFile, EditImageResult } from '../types/virtual-try-on';
 
-if (!import.meta.env.VITE_GEMINI_API_KEY) {
-  throw new Error("VITE_GEMINI_API_KEY environment variable is not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+// Make Gemini API optional for deployment
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 const model = 'gemini-2.5-flash-image-preview';
 
 export const editImage = async (
   personImage: ImageFile,
   ringImage: ImageFile
 ): Promise<EditImageResult> => {
+  // Check if Gemini API is available
+  if (!ai || !GEMINI_API_KEY) {
+    console.warn('VITE_GEMINI_API_KEY not configured. Virtual Try-On feature disabled.');
+    
+    // Return a demo response
+    return {
+      text: 'Virtual Try-On Feature Unavailable: Gemini API key not configured',
+      imageBase64: null,
+      mimeType: null,
+    };
+  }
+
   try {
     const prompt = `
 You are a master digital artist specializing in hyper-realistic jewelry photo compositing. Your goal is to edit the photo of the hand to show it wearing the provided ring. Follow these steps meticulously:
@@ -33,7 +43,7 @@ You are a master digital artist specializing in hyper-realistic jewelry photo co
 - The final result must be photorealistic, with correct lighting, shadows, and reflections that match the original hand image.
 `;
     
-    const response = await ai.models.generateContent({
+    const response = await ai!.models.generateContent({
       model: model,
       contents: {
         parts: [
@@ -94,3 +104,68 @@ You are a master digital artist specializing in hyper-realistic jewelry photo co
     throw new Error("An unexpected error occurred while calling the Gemini API.");
   }
 };
+
+export async function analyzeRingImage(imageBase64: string): Promise<string> {
+  // Check if Gemini API is available
+  if (!ai || !GEMINI_API_KEY) {
+    console.warn('VITE_GEMINI_API_KEY not configured. Virtual Try-On feature disabled.');
+    return `Virtual Try-On Analysis (Demo Mode)
+    
+🔍 Ring Analysis:
+- Style: Classic Engagement Ring Setting
+- Estimated Characteristics: Premium quality with elegant design
+- Metal: High-quality precious metal
+- Design: Timeless and sophisticated
+- Note: For full AI analysis, configure VITE_GEMINI_API_KEY in environment variables
+
+This is a demo response since the Gemini API key is not configured.`;
+  }
+
+  try {
+    const prompt = `Analyze this engagement ring image and provide a detailed description including:
+    - Ring style and setting type
+    - Estimated carat weight and diamond characteristics
+    - Metal type (if visible)
+    - Overall design elements
+    - Estimated price range
+    
+    Please be specific and professional in your analysis.`;
+
+    const response = await ai!.models.generateContent({
+      model: model,
+      contents: {
+        parts: [
+          {
+            text: prompt,
+          },
+          {
+            inlineData: {
+              data: imageBase64,
+              mimeType: "image/jpeg",
+            },
+          },
+        ],
+      },
+    });
+
+    if (!response.candidates || response.candidates.length === 0) {
+      throw new Error("No response from Gemini API");
+    }
+
+    const candidate = response.candidates[0];
+    let resultText = '';
+    
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.text) {
+          resultText += part.text;
+        }
+      }
+    }
+
+    return resultText || 'Unable to analyze the ring image.';
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    return 'Failed to analyze ring image. Please check your API configuration.';
+  }
+}
