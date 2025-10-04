@@ -144,5 +144,5 @@ This project is created for educational purposes.
 
 ---
 
-🔗 **Live Demo**: [Your Netlify URL]  
-📧 **Contact**: Your email
+🔗 **Live Demo**: https://renartintern.netlify.app/
+📧 **Contact**: eyupiliss@gmail.com
