@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { X } from 'lucide-react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HeroSection } from './components/HeroSection';
@@ -91,8 +92,9 @@ function App() {
         {/* Products Section with Top Bar - Exactly like in the provided image */}
         <section id="products" className="w-full px-6 lg:px-12 py-8">
           {/* Top Header Bar - Exactly like in the provided image */}
-          <div className="max-w-7xl mx-auto mb-12">
-            <div className="flex items-center py-6 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto mb-8 lg:mb-12">
+            {/* Desktop Layout */}
+            <div className="hidden lg:flex items-center py-6 border-b border-gray-200">
               {/* Left side - Sort By and Product Count */}
               <div className="flex items-center space-x-8 w-1/3">
                 <div className="flex items-center space-x-2">
@@ -129,6 +131,44 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* Mobile Layout */}
+            <div className="lg:hidden space-y-4 py-4 border-b border-gray-200">
+              {/* Title */}
+              <div className="text-center">
+                <h1 className="text-2xl sm:text-3xl font-serif text-black tracking-wide">Engagement Rings</h1>
+              </div>
+              
+              {/* Controls */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-medium text-black tracking-wide">SORT BY</span>
+                    <select
+                      className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-black"
+                      value={sortBy}
+                      onChange={(e) => handleSortChange(e.target.value as SortOption)}
+                    >
+                      <option value="featured">Featured</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                      <option value="newest">Newest</option>
+                    </select>
+                  </div>
+                  <span className="text-xs font-medium text-gray-600">{filteredAndSortedProducts.length} PRODUCTS</span>
+                </div>
+
+                <button
+                  className="flex items-center space-x-2 text-xs font-medium text-black hover:text-gray-600 transition-colors tracking-wide border border-gray-300 px-3 py-2 rounded"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <span>FILTERS</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           {error && (
@@ -139,15 +179,34 @@ function App() {
 
           {/* Main Content Area with Sidebar */}
           <div className="max-w-7xl mx-auto">
-            <div className="flex gap-8">
-              {/* Filter Sidebar */}
+            <div className="lg:flex gap-8">
+              {/* Desktop Filter Sidebar */}
               {showFilters && (
-                <div className="w-80 flex-shrink-0">
+                <div className="hidden lg:block w-80 flex-shrink-0">
                   <FilterSidebar
                     filters={filters}
                     onFiltersChange={handleFiltersChange}
                     totalCount={filteredAndSortedProducts.length}
                   />
+                </div>
+              )}
+
+              {/* Mobile Filter Overlay */}
+              {showFilters && (
+                <div className="lg:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setShowFilters(false)}>
+                  <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-lg font-medium">Filters</h2>
+                      <button onClick={() => setShowFilters(false)} className="text-gray-500 hover:text-gray-700">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <FilterSidebar
+                      filters={filters}
+                      onFiltersChange={handleFiltersChange}
+                      totalCount={filteredAndSortedProducts.length}
+                    />
+                  </div>
                 </div>
               )}
 
