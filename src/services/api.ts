@@ -1,5 +1,47 @@
 import type { ProductsResponse, ProductFilters, Product } from '../types/product';
 
+// Gold price caching
+let goldPriceCache: { price: number; timestamp: number } | null = null;
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+async function getGoldPrice(): Promise<number> {
+  const now = Date.now();
+  
+  // Check cache first
+  if (goldPriceCache && (now - goldPriceCache.timestamp) < CACHE_DURATION) {
+    console.log('🥇 Using cached gold price:', goldPriceCache.price.toFixed(2), '$/gram');
+    return goldPriceCache.price;
+  }
+
+  try {
+    console.log('🌐 Fetching real-time gold price...');
+    
+    // Using free API from fcsapi.com for gold prices
+    const response = await fetch('https://fcsapi.com/api-v3/forex/latest?symbol=XAUUSD&access_key=demo'); // demo key for testing
+    
+    if (!response.ok) {
+      throw new Error(`Gold API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // API returns gold price in USD per ounce
+    const pricePerOunce = data?.response?.[0]?.price || data?.response?.[0]?.c || 2650; // fallback to ~$2650/oz
+    const pricePerGram = parseFloat(pricePerOunce) / 31.1035; // Convert ounce to gram
+    
+    // Cache the result
+    goldPriceCache = { price: pricePerGram, timestamp: now };
+    console.log('✅ Real-time gold price:', pricePerGram.toFixed(2), '$/gram', '(from', pricePerOunce, '$/oz)');
+    
+    return pricePerGram;
+  } catch (error) {
+    console.error('❌ Gold price API error:', error);
+    console.log('🔄 Using fallback gold price: 85.2 $/gram');
+    // Fallback to a reasonable price if API fails
+    return 85.2; // ~$2650/oz converted to per gram
+  }
+}
+
 // Local data from server/data/products.json
 const localProducts = [
   {
@@ -96,7 +138,7 @@ export async function fetchProducts(filters?: ProductFilters): Promise<ProductsR
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 200));
   
-  const goldPrice = 85.2; // Fixed gold price per gram
+  const goldPrice = await getGoldPrice(); // Real-time gold price per gram
   
   let products: Product[] = localProducts.map((product, index) => ({
     id: `product-${index + 1}`,
